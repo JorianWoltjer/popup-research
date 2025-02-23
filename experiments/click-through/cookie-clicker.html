@@ -1,0 +1,31 @@
+<style>
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    margin: 0;
+  }
+  h1 {
+    font-family: "Comic Sans MS", sans-serif;
+    font-size: 3rem;
+    margin-bottom: 1rem;
+  }
+  img {
+    width: 400px;
+    height: 400px;
+    cursor: pointer;
+  }
+</style>
+<h1>Cookie Clicker</h1>
+<p>score: <span id="score">0</span></p>
+<img src="https://i.pinimg.com/originals/cf/d3/d8/cfd3d8bee6854d492f83f3eb7c6fb483.png" id="cookie" />
+<script>
+  onclick = (e) => {
+    score.innerText = Number(score.innerText) + 1;
+
+    const { clientX, clientY } = e;
+    opener.postMessage({ position: { x: clientX, y: clientY } }, "*");
+  };
+</script>

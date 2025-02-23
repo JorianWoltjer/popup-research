@@ -1,0 +1,15 @@
+<h1>Target</h1>
+<p>Loading...</p>
+
+<script>
+  // Add button after 1 second, to simulate long loading
+  setTimeout(() => {
+    const button = document.createElement("button");
+    button.id = "target";
+    button.textContent = "Target";
+    button.onclick = () => {
+      alert();
+    };
+    document.body.appendChild(button);
+  }, 1000);
+</script>

