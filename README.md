@@ -11,6 +11,9 @@ This repo includes the proof-of-concepts from my ["Pressing Buttons with Popups 
 * [**LinkedIn**](real-world-pocs/linkedin/): Most common example with `id=` attribute in hash to focus
 * [**Redacted**](real-world-pocs/redacted/): OAuth 1.0 with an `origin` check bypassed using `origin = null`
 
+**Ultimate PoC**:
+* [**Gitlab**](ultimate-poc/gitlab/): Implementation of moving background popup with Flappy Bird
+
 ---
 
 All proof of concepts assume you enter their directory and host a simple HTTP server using:

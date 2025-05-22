@@ -1,0 +1,152 @@
+<body bgcolor="2b3538" style="margin: 0">
+  <div style="display: flex; align-items: center; justify-content: center; height: 100%; width: 100%">
+    <iframe
+      class="game-iframe"
+      id="canvas"
+      src="{{ url_for('static', filename='game/canvas.html') }}"
+      width="480"
+      height="800"
+      scrolling="none"
+      frameborder="0"
+      allowfullscreen=""
+      style="width: min(60vh, 90vw); height: 90vh; outline: 3px solid black; box-shadow: 6px 6px 0px 0px #4f4f4f"
+    ></iframe>
+  </div>
+  <script>
+    const TARGET = {{ url|tojson }};
+    const BUTTON = {{ button|tojson }};
+    const POPUP_SIZE = {{ popup_size|tojson }};
+    const USE_HISTORY_BACK = {{ use_history_back|tojson }};
+
+    let button, popupPos, navbarHeight;
+    let paused = true;
+    let done = false;
+    let prevMouse = [0, 0];
+    let mouse = [0, 0];
+    let targetLoaded = Infinity;
+
+    function sleep(ms) {
+      return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+  </script>
+  <script>
+    // Intentionally without user activation, only care about getting the reference, we want to avoid focusing it yet
+    w = window.open("", "popup");
+    console.log("Recovered window", w);
+    const checkStillOpen = setInterval(() => {
+      if (!done && (!w || w.closed)) {
+        // restart whole flow if popup is closed
+        location = "/";
+        clearInterval(checkStillOpen);
+      }
+    }, 100);
+
+    // Track mouse position
+    canvas.contentWindow.addEventListener("mousemove", function (e) {
+      // using `screenX`/`screenY` here will automatically handle multiple monitors
+      mouse = [e.screenX, e.screenY];
+    });
+
+    (async () => {
+      // Measurements
+      navbarHeight = w.outerHeight - w.innerHeight;
+      if (BUTTON.url) {
+        // got a dynamic button, need to open it and measure button dimensions
+        w.resizeTo(POPUP_SIZE[0], POPUP_SIZE[1]);
+        w.location = TARGET.includes("#") ? BUTTON.url + "#" + TARGET.split("#")[1] : BUTTON.url;
+
+        // wait for recreation to load
+        await new Promise((resolve) => {
+          const checkLoaded = setInterval(() => {
+            w.addEventListener("load", () => {
+              clearInterval(checkLoaded);
+              resolve();
+            });
+          }, 0);
+        });
+
+        const buttonEl = w.document.querySelector(BUTTON.selector);
+        console.log("Button element:", buttonEl);
+        const rect = buttonEl.getBoundingClientRect();
+        button = {
+          pos: [rect.x, rect.y],
+          size: [rect.width, rect.height],
+        };
+      } else {
+        button = BUTTON;
+      }
+      console.log("Button:", button);
+      // save target in history entry if needed
+      if (USE_HISTORY_BACK) w.location = TARGET;
+
+      while (true) {
+        await sleep(500);
+
+        const stillOnButton = Math.abs(prevMouse[0] - mouse[0]) < button.size[0] / 2 && Math.abs(prevMouse[1] - mouse[1]) < button.size[1] / 2;
+        if (done || paused || stillOnButton) {
+          continue;
+        }
+
+        // mouse moved away from button, need to move popup
+        console.log(`Need to move popup from ${prevMouse} to ${mouse}`);
+        prevMouse = mouse;
+        // make it same-origin
+        w.location = "about:blank";
+        while (true) {
+          try {
+            w.origin;
+            break;
+          } catch (ex) {
+            console.log("Waiting for popup to become same-origin...");
+            await sleep(100);
+          }
+        }
+        // moveTo() the new position with offsets
+        const x = mouse[0] - button.pos[0] - button.size[0] / 2;
+        const y = mouse[1] - button.pos[1] - button.size[1] / 2 - navbarHeight;
+        popupPos = [x, y];
+        console.log(`Moving to: ${popupPos}`);
+        w.moveTo(x, y);
+        w.resizeTo(POPUP_SIZE[0], POPUP_SIZE[1]);
+        // change location to target again (history.back may be faster)
+        USE_HISTORY_BACK ? w.history.back() : (w.location = TARGET);
+        targetLoaded = Date.now();
+      }
+    })();
+
+    // Communication with game canvas
+    onmessage = async (e) => {
+      console.log("Message:", e.data);
+      if (e.data.type === "update") {
+        // on game start/stop, this will start/stop the moving of the popup to avoid excessive reloads
+        paused = e.data.paused;
+      } else if (e.data === "trigger") {
+        // when user makes to the the 3rd pipe, likely to quickly click again
+        // make sure target has had time to load
+        if (done || Date.now() - targetLoaded < 1000) {
+          console.log("Skipping trigger: target not loaded yet");
+          return;
+        }
+        // check if popup still fits on screen
+        if (
+          popupPos[0] + button.size[0] / 2 < screen.availLeft ||
+          popupPos[1] + button.size[1] / 2 - navbarHeight < screen.availTop ||
+          popupPos[0] + POPUP_SIZE[0] - button.size[0] / 2 > screen.availLeft + screen.availWidth ||
+          popupPos[1] + POPUP_SIZE[1] - button.size[1] / 2 - navbarHeight > screen.availTop + screen.availHeight
+        ) {
+          console.log("Skipping trigger: popup out of screen");
+          return;
+        }
+        // focus the popup, makes the user accidentally click the button
+        w = window.open("", "popup");
+        done = true;
+        // after authorization finishes, reload the page which should display oauth data from session
+        while (!w.closed) {
+          console.log("Waiting for popup to be closed...");
+          await sleep(100);
+        }
+        location = "/";
+      }
+    };
+  </script>
+</body>

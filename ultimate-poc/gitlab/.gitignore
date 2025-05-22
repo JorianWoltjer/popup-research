@@ -1,0 +1,5 @@
+*.zip
+*.mp4
+*.bak*
+tmp
+REPORT.md
